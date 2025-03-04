@@ -23,7 +23,7 @@ It installs and configures **MongoDB 7.0**, **OpenSearch 2.15**, and **Graylog**
 
 ### 1. **Download the script**
 ```bash
-wget https://github.com/BransonBailey/Project-blog/blob/main/Basic_Graylog_Installation/install_graylog.sh
+wget https://raw.githubusercontent.com/BransonBailey/Project-blog/refs/heads/main/Basic_Graylog_Installation/install_graylog.sh
 ```
 ### 2. Make it executable
 ```bash
