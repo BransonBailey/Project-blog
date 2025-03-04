@@ -8,7 +8,7 @@ echo "----------------------------------"
 
 # Ensure system is up to date
 echo "[+] Updating system packages..."
-sudo apt update && sudo apt upgrade -y
+sudo apt update --allow-change-held-packages && sudo apt upgrade -y
 
 echo "[+] Installing dependencies..."
 sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget openjdk-17-jdk uuid-runtime pwgen
@@ -23,7 +23,7 @@ curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | sudo gpg -o /etc/
 echo "deb [ signed-by=/etc/apt/keyrings/mongodb-server-7.0.gpg ] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
 
 echo "[+] Installing MongoDB..."
-sudo apt update && sudo apt install -y mongodb-org
+sudo apt update --allow-change-held-packages && sudo apt install -y mongodb-org
 
 echo "[+] Starting and enabling MongoDB service..."
 sudo systemctl enable --now mongod
@@ -67,7 +67,7 @@ wget https://packages.graylog2.org/repo/packages/graylog-6.0-repository_latest.d
 sudo dpkg -i graylog-6.0-repository_latest.deb
 
 echo "[+] Installing Graylog..."
-sudo apt update && sudo apt install -y graylog-server
+sudo apt update --allow-change-held-packages && sudo apt install -y graylog-server
 
 echo "[+] Generating secrets..."
 GRAYLOG_SECRET=$(openssl rand -base64 96)
