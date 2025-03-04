@@ -54,14 +54,14 @@ done
 
 echo "[+] MongoDB installed and running!"
 
-# --- Install OpenSearch 2.15 ---
+# --- Install OpenSearch ---
 echo "[+] Adding OpenSearch repository..."
 curl -o- https://artifacts.opensearch.org/publickeys/opensearch.pgp | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/opensearch-keyring
 echo "deb [signed-by=/etc/apt/keyrings/opensearch-keyring] https://artifacts.opensearch.org/releases/bundle/opensearch/2.x/apt stable main" | sudo tee /etc/apt/sources.list.d/opensearch-2.x.list
 
 echo "[+] Installing OpenSearch..."
-sudo OPENSEARCH_INITIAL_ADMIN_PASSWORD=$(openssl rand -base64 32)
-sudo apt update && sudo apt install -y opensearch
+sudo apt update
+sudo OPENSEARCH_INITIAL_ADMIN_PASSWORD=$(openssl rand -base64 32) apt install -y opensearch
 
 echo "[+] Preventing OpenSearch upgrades..."
 sudo apt-mark hold opensearch
