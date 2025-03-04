@@ -25,8 +25,12 @@ echo "deb [ signed-by=/etc/apt/keyrings/mongodb-server-5.0.gpg ] https://repo.mo
 echo "[+] Updating package lists..."
 sudo apt update
 
-echo "[+] Installing MongoDB 5.0.31..."
-sudo apt install -y mongodb-org=5.0.31 mongodb-org-server=5.0.31 mongodb-org-shell=5.0.31 mongodb-mongosh=5.0.31 mongodb-org-tools=5.0.31
+echo "[+] Installing MongoDB 5.0.31 (without specific mongosh version)..."
+sudo apt install -y mongodb-org=5.0.31 mongodb-org-server=5.0.31 mongodb-org-shell=5.0.31 mongodb-org-tools=5.0.31
+
+# Install the latest available mongosh separately
+echo "[+] Installing MongoDB shell separately..."
+sudo apt install -y mongodb-mongosh
 
 echo "[+] Fixing MongoDB permissions..."
 sudo mkdir -p /var/lib/mongodb
