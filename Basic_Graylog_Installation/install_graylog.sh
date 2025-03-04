@@ -93,6 +93,7 @@ sudo apt-mark hold mongodb-org graylog-server
 echo "[+] Configuring Syslog UDP input..."
 GRAYLOG_INPUT_PAYLOAD='{"title":"Syslog","global":true,"type":"org.graylog2.inputs.syslog.udp.SyslogUDPInput","configuration":{"bind_address":"0.0.0.0","port":5140,"recv_buffer_size":262144,"override_source":""}}'
 GRAYLOG_API="http://127.0.0.1:9000/api/system/inputs"
+sudo systemctl start graylog-server.service && sudo systemctl enable graylog-server.service
 
 # Wait for Graylog to be fully initialized before creating inputs
 echo "[+] Waiting for Graylog to start..."
