@@ -45,7 +45,9 @@ sudo chmod -R 755 /var/lib/mongodb
 
 # --- Start MongoDB ---
 echo "[+] Starting and enabling MongoDB service..."
-sudo systemctl enable --now mongod
+sudo systemctl start mongod
+sudo systemctl daemon-reload
+sudo systemctl enable mongod
 
 # --- Wait for MongoDB to Start ---
 echo "[+] Waiting for MongoDB to be fully initialized..."
