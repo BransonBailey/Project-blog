@@ -17,20 +17,16 @@ sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget openjdk-1
 echo "[+] Setting timezone to UTC..."
 sudo timedatectl set-timezone UTC
 
-# --- Install MongoDB 5.0 (Stable for Your System) ---
+# --- Install MongoDB 7.0 (Latest) ---
 echo "[+] Adding MongoDB repository..."
-curl -fsSL https://www.mongodb.org/static/pgp/server-5.0.asc | sudo gpg -o /etc/apt/keyrings/mongodb-server-5.0.gpg --dearmor
-echo "deb [ signed-by=/etc/apt/keyrings/mongodb-server-5.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | sudo gpg -o /etc/apt/keyrings/mongodb-server-7.0.gpg --dearmor
+echo "deb [ signed-by=/etc/apt/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
 
 echo "[+] Updating package lists..."
 sudo apt update
 
-echo "[+] Installing MongoDB 5.0.31 (without specific mongosh version)..."
-sudo apt install -y mongodb-org=5.0.31 mongodb-org-server=5.0.31 mongodb-org-shell=5.0.31 mongodb-org-tools=5.0.31
-
-# Install the latest available mongosh separately
-echo "[+] Installing MongoDB shell separately..."
-sudo apt install -y mongodb-mongosh
+echo "[+] Installing MongoDB 7.0..."
+sudo apt install -y mongodb-org
 
 echo "[+] Fixing MongoDB permissions..."
 sudo mkdir -p /var/lib/mongodb
