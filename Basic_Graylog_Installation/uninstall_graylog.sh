@@ -13,6 +13,9 @@ sudo systemctl stop graylog-server || true
 sudo systemctl stop opensearch || true
 sudo systemctl stop mongod || true
 
+echo "[+] Unholding services..."
+sudo apt-mark unhold graylog-server mongodb-org openserach
+
 # --- Remove All Installed Packages ---
 echo "[+] Removing installed packages..."
 sudo apt remove --purge -y graylog-server mongodb-org opensearch || true
