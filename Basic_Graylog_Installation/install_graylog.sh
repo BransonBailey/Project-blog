@@ -2,9 +2,8 @@
 
 # Exit on error
 set -e
-
 echo "----------------------------------"
-echo " Graylog Installation - Ubuntu 24.04.2 LTS"
+echo "Graylog Installation - Ubuntu 24.04.2 LTS"
 echo "----------------------------------"
 
 # Ensure system is up to date
