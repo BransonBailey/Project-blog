@@ -17,13 +17,13 @@ sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget openjdk-1
 echo "[+] Setting timezone to UTC..."
 sudo timedatectl set-timezone UTC
 
-# --- Install MongoDB 7.0 ---
+# --- Install MongoDB 6.0 (More Stable) ---
 echo "[+] Adding MongoDB repository..."
 curl -fsSL https://www.mongodb.org/static/pgp/server-6.0.asc | sudo gpg -o /etc/apt/keyrings/mongodb-server-6.0.gpg --dearmor
 echo "deb [ signed-by=/etc/apt/keyrings/mongodb-server-6.0.gpg ] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/6.0 main" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
 
 echo "[+] Installing MongoDB..."
-sudo apt update --allow-change-held-packages && sudo apt install -y mongodb-org
+sudo apt update && sudo apt install -y mongodb-org
 
 echo "[+] Starting and enabling MongoDB service..."
 sudo systemctl enable --now mongod
