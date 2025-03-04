@@ -104,8 +104,8 @@ curl -X POST "$GRAYLOG_API" -u "admin:admin" -H "Content-Type: application/json"
 
 # --- Final Output ---
 echo "--------------------------------------------------"
-echo "✅ Graylog installation complete!"
-echo "✅ Access the web UI at: http://<your-server-ip>:9000/"
-echo "✅ Login with username: admin and password: admin"
-echo "✅ Syslog input added on port 5140"
+echo "Graylog installation complete!"
+echo "Access the web UI at: http://<your-server-ip>:9000/"
+echo "Login with username: admin and password: admin"
+echo "Syslog input added on port 5140"
 echo "--------------------------------------------------"
