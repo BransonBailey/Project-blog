@@ -17,16 +17,31 @@ sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget openjdk-1
 echo "[+] Setting timezone to UTC..."
 sudo timedatectl set-timezone UTC
 
-# --- Install MongoDB 6.0 (More Stable) ---
+# --- Install MongoDB 5.0 (Stable for Your System) ---
 echo "[+] Adding MongoDB repository..."
 curl -fsSL https://www.mongodb.org/static/pgp/server-5.0.asc | sudo gpg -o /etc/apt/keyrings/mongodb-server-5.0.gpg --dearmor
-echo "deb [ signed-by=/etc/apt/keyrings/mongodb-server-5.0.gpg ] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/5.0 main" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+echo "deb [ signed-by=/etc/apt/keyrings/mongodb-server-5.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
 
-echo "[+] Installing MongoDB..."
-sudo apt update --allow-change-held-packages && sudo apt install -y mongodb-org=5.0.31 mongodb-org-server=5.0.31 mongodb-org-shell=5.0.31 mongodb-mongosh=5.0.31 mongodb-org-tools=5.0.31
+echo "[+] Updating package lists..."
+sudo apt update
+
+echo "[+] Installing MongoDB 5.0.31..."
+sudo apt install -y mongodb-org=5.0.31 mongodb-org-server=5.0.31 mongodb-org-shell=5.0.31 mongodb-mongosh=5.0.31 mongodb-org-tools=5.0.31
+
+echo "[+] Fixing MongoDB permissions..."
+sudo mkdir -p /var/lib/mongodb
+sudo chown -R mongodb:mongodb /var/lib/mongodb
+sudo chmod -R 755 /var/lib/mongodb
 
 echo "[+] Starting and enabling MongoDB service..."
-sudo systemctl start mongod && sudo systemctl enable --now mongod
+sudo systemctl enable --now mongod
+
+# Ensure MongoDB is running before continuing
+echo "[+] Waiting for MongoDB to be fully initialized..."
+until sudo systemctl is-active --quiet mongod; do
+    sleep 5
+    echo "[!] Waiting for MongoDB to start..."
+done
 
 # --- Install OpenSearch 2.15 ---
 echo "[+] Adding OpenSearch repository..."
