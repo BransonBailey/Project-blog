@@ -11,7 +11,7 @@ echo "[+] Updating system packages..."
 sudo apt update --allow-change-held-packages && sudo apt upgrade -y
 
 echo "[+] Installing dependencies..."
-sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget unzip
+sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget unzip openjdk-17-jre
 
 # Set timezone to UTC
 echo "[+] Setting timezone to UTC..."
@@ -96,11 +96,48 @@ sudo systemctl enable --now opensearch
 wget https://packages.graylog2.org/repo/packages/graylog-6.0-repository_latest.deb
 sudo dpkg -i graylog-6.0-repository_latest.deb
 
+# --- Install Graylog Data Node ---
+echo "[+] Installing Graylog Data Node..."
+wget https://packages.graylog2.org/repo/packages/graylog-6.1-repository_latest.deb
+sudo dpkg -i graylog-6.1-repository_latest.deb
+sudo apt-get update
+sudo apt-get install -y graylog-datanode
+
+# --- Configure Linux Kernel Parameters ---
+echo "[+] Configuring Linux kernel parameters for Data Node..."
+echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.d/99-graylog-datanode.conf
+sudo sysctl --system
+
+# --- Generate and Set Password Secret ---
+echo "[+] Generating password secret..."
+GRAYLOG_SECRET=$(openssl rand -base64 96)
+
+echo "[+] Configuring Data Node..."
+sudo bash -c "cat <<EOF > /etc/graylog/datanode/datanode.conf
+password_secret = $GRAYLOG_SECRET
+opensearch_heap = 2g
+mongodb_uri = mongodb://graylog:27017/graylog
+EOF"
+
+# --- Set Heap Memory for Data Node ---
+echo "[+] Configuring Data Node heap settings..."
+sudo bash -c "cat <<EOF > /etc/graylog/datanode/jvm.options
+-Xms2g
+-Xmx2g
+EOF"
+
+# --- Enable and Start Data Node ---
+echo "[+] Starting and enabling Graylog Data Node service..."
+sudo systemctl daemon-reload
+sudo systemctl enable graylog-datanode.service
+sudo systemctl start graylog-datanode
+
+echo "[+] Graylog Data Node installation complete!"
+
 echo "[+] Installing Graylog..."
 sudo apt update --allow-change-held-packages && sudo apt install -y graylog-server
 
 echo "[+] Generating secrets..."
-GRAYLOG_SECRET=$(openssl rand -base64 96)
 GRAYLOG_ADMIN_PASSWORD=$(echo -n "admin" | sha256sum | cut -d" " -f1)
 
 echo "[+] Configuring Graylog..."
@@ -109,9 +146,18 @@ password_secret = $GRAYLOG_SECRET
 root_password_sha2 = $GRAYLOG_ADMIN_PASSWORD
 root_email = admin@example.com
 http_bind_address = 0.0.0.0:9000
+http_publish_uri = http://127.0.0.1:9000/
 elasticsearch_hosts = http://127.0.0.1:9200
 transport_email_enabled = false
+data_dir = /var/lib/graylog-server
 EOF"
+
+sudo mkdir -p /var/lib/graylog-server
+sudo mkdir -p /var/lib/graylog-server/journal
+sudo chown -R graylog:graylog /var/lib/graylog-server
+sudo chmod -R 755 /var/lib/graylog-server
+
+sudo iptables -A INPUT -p tcp --dport 9000 -j ACCEPT
 
 echo "[+] Starting and enabling Graylog service..."
 sudo systemctl enable --now graylog-server
