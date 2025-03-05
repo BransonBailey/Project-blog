@@ -1,7 +1,7 @@
 # Graylog Auto Installer - Ubuntu Server 24.04.2 LTS
 
 This script fully automates the installation of **Graylog 6.0** on **Ubuntu Server 24.04.2 LTS**.  
-It installs and configures **MongoDB 7.0**, **OpenSearch 2.15**, and **Graylog**, ensuring all services start on boot.
+It installs and configures **Docker**, **MongoDB**, **OpenSearch**, and **Graylog**, ensuring all services start on boot.
 
 ## Features
 - **Fully automated setup** of Graylog and its dependencies.
@@ -46,51 +46,75 @@ http://<your-server-ip>:9000
 
 ---
 
-## System Services & Maintenance
+## System Services & Maintenance (Docker)
 
-###Restart Services
+### Restart Services
+To restart Graylog, OpenSearch, or MongoDB in Docker:
 ```bash
-sudo systemctl restart graylog-server
-sudo systemctl restart opensearch
-sudo systemctl restart mongod
+docker restart graylog-server
+docker restart graylog-opensearch
+docker restart graylog-mongo
+```
+
+To restart all at once:
+```bash
+docker-compose restart
+```
+or if using the new Docker CLI:
+```bash
+docker compose restart
 ```
 
 ### Check Logs
+View logs for each service:
 ```bash
-sudo journalctl -u graylog-server -f
+docker logs -f graylog-server
+docker logs -f graylog-opensearch
+docker logs -f graylog-mongo
 ```
 
-### Uninstall (If Needed)
-If you want to completely remove Graylog and its dependencies:
+## Uninstall (If Needed)
+If you want to completely remove Graylog, OpenSearch, and MongoDB, along with all stored data:
 ```bash
-sudo systemctl stop graylog-server opensearch mongod
-sudo apt remove --purge -y graylog-server mongodb-org opensearch
-sudo rm -rf /var/lib/mongodb /var/lib/opensearch /var/lib/graylog-server
-sudo rm -rf /etc/graylog /etc/opensearch /etc/mongod.conf
+cd ~/graylog
+docker-compose down -v  # Stops and removes all containers, volumes, and networks
+rm -rf ~/graylog        # Deletes configuration and docker-compose files
 ```
+**Warning: This will delete all logs and configurations.**
 
-### Troubleshooting
-Check logs:
+---
 
+## Troubleshooting
+
+### Web UI Not Accessible?
+Check if the Graylog container is running:
 ```bash
-sudo journalctl -u graylog-server -f
+docker ps | grep graylog-server
 ```
-
-Web UI Not Accessible?
-Ensure Graylog is bound to 0.0.0.0 in /etc/graylog/server/server.conf:
-
-```ini
-http_bind_address = 0.0.0.0:9000
-```
-
-Restart:
+If not, restart it:
 ```bash
-sudo systemctl restart graylog-server
+docker restart graylog-server
 ```
 
-No Logs in Graylog?
-- Ensure syslog is sending data:
+Ensure Graylog is bound to 0.0.0.0 inside docker-compose.yml:
+```yaml
+environment:
+  - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+```
+Apply changes:
+```bash
+docker-compose up -d --force-recreate
+```
+
+### No Logs in Graylog?
+Ensure syslog is sending data:
 ```bash
 sudo systemctl status rsyslog
 ```
-- Verify Graylog input exists under System > Inputs.
+
+Verify Graylog input exists under System > Inputs in the web UI.
+
+Check if Graylog is receiving logs:
+```bash
+docker logs -f graylog-server | grep "received message"
+```
