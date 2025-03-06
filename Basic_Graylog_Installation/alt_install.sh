@@ -71,9 +71,19 @@ echo "[+] Preventing OpenSearch upgrades..."
 sudo apt-mark hold opensearch
 
 echo "[+] Configuring OpenSearch..."
-sudo bash -c 'cat <<EOF > /etc/opensearch/opensearch.yml
+sudo touch /etc/opensearch/opensearch.yml
+
+sudo sed -i '/^cluster.name:/d' /etc/opensearch/opensearch.yml
+sudo sed -i '/^node.name:/d' /etc/opensearch/opensearch.yml
+sudo sed -i '/^network.host:/d' /etc/opensearch/opensearch.yml
+sudo sed -i '/^discovery.type:/d' /etc/opensearch/opensearch.yml
+sudo sed -i '/^action.auto_create_index:/d' /etc/opensearch/opensearch.yml
+sudo sed -i '/^plugins.security.disabled:/d' /etc/opensearch/opensearch.yml
+sudo sed -i '/^plugins.security.ssl.http.enabled:/d' /etc/opensearch/opensearch.yml
+
+sudo bash -c 'cat <<EOF >> /etc/opensearch/opensearch.yml
 cluster.name: graylog
-node.name: $(hostname)
+node.name: '"$(hostname)"'
 network.host: 127.0.0.1
 discovery.type: single-node
 action.auto_create_index: false
@@ -105,7 +115,13 @@ sudo apt-get install -y graylog-datanode
 
 # --- Configure Linux Kernel Parameters ---
 echo "[+] Configuring Linux kernel parameters for Data Node..."
-echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.d/99-graylog-datanode.conf
+
+# Check if the parameter is already set before adding it
+if ! grep -q "^vm.max_map_count=262144" /etc/sysctl.d/99-graylog-datanode.conf; then
+    echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.d/99-graylog-datanode.conf
+fi
+
+# Apply the changes
 sudo sysctl --system
 
 # --- Generate and Set Password Secret ---
@@ -113,7 +129,20 @@ echo "[+] Generating password secret..."
 GRAYLOG_SECRET=$(openssl rand -base64 96)
 
 echo "[+] Configuring Data Node..."
-sudo bash -c "cat <<EOF > /etc/graylog/datanode/datanode.conf
+
+CONFIG_FILE="/etc/graylog/datanode/datanode.conf"
+
+# Ensure the config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    sudo touch "$CONFIG_FILE"
+fi
+
+# Modify or append values safely
+sudo sed -i '/^password_secret/d' "$CONFIG_FILE"
+sudo sed -i '/^opensearch_heap/d' "$CONFIG_FILE"
+sudo sed -i '/^mongodb_uri/d' "$CONFIG_FILE"
+
+sudo bash -c "cat <<EOF >> $CONFIG_FILE
 password_secret = $GRAYLOG_SECRET
 opensearch_heap = 2g
 mongodb_uri = mongodb://graylog:27017/graylog
@@ -121,7 +150,20 @@ EOF"
 
 # --- Set Heap Memory for Data Node ---
 echo "[+] Configuring Data Node heap settings..."
-sudo bash -c "cat <<EOF > /etc/graylog/datanode/jvm.options
+
+JVM_OPTIONS="/etc/graylog/datanode/jvm.options"
+
+# Ensure the file exists
+if [ ! -f "$JVM_OPTIONS" ]; then
+    sudo touch "$JVM_OPTIONS"
+fi
+
+# Remove existing heap size settings to avoid duplicates
+sudo sed -i '/^-Xms/d' "$JVM_OPTIONS"
+sudo sed -i '/^-Xmx/d' "$JVM_OPTIONS"
+
+# Append the correct heap settings
+sudo bash -c "cat <<EOF >> $JVM_OPTIONS
 -Xms2g
 -Xmx2g
 EOF"
@@ -141,7 +183,26 @@ echo "[+] Generating secrets..."
 GRAYLOG_ADMIN_PASSWORD=$(echo -n "admin" | sha256sum | cut -d" " -f1)
 
 echo "[+] Configuring Graylog..."
-sudo bash -c "cat <<EOF > /etc/graylog/server/server.conf
+
+CONFIG_FILE="/etc/graylog/server/server.conf"
+
+# Ensure the config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    sudo touch "$CONFIG_FILE"
+fi
+
+# Remove existing values to avoid duplicates
+sudo sed -i '/^password_secret/d' "$CONFIG_FILE"
+sudo sed -i '/^root_password_sha2/d' "$CONFIG_FILE"
+sudo sed -i '/^root_email/d' "$CONFIG_FILE"
+sudo sed -i '/^http_bind_address/d' "$CONFIG_FILE"
+sudo sed -i '/^http_publish_uri/d' "$CONFIG_FILE"
+sudo sed -i '/^elasticsearch_hosts/d' "$CONFIG_FILE"
+sudo sed -i '/^transport_email_enabled/d' "$CONFIG_FILE"
+sudo sed -i '/^data_dir/d' "$CONFIG_FILE"
+
+# Append the correct values
+sudo bash -c "cat <<EOF >> $CONFIG_FILE
 password_secret = $GRAYLOG_SECRET
 root_password_sha2 = $GRAYLOG_ADMIN_PASSWORD
 root_email = admin@example.com
