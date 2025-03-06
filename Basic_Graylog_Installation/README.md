@@ -20,6 +20,22 @@ As their names suggest, one installs and configures MongoDB, OpenSearch, and Gra
 ### Docker-based Installation
 1. **Download the script**  
    ```bash
+   wget https://raw.githubusercontent.com/BransonBailey/Project-blog/refs/heads/main/Basic_Graylog_Installation/install_graylog_docker.sh
+   ```
+2. **Make it executable**  
+   ```bash
+   chmod +x install_graylog_docker.sh
+   ```
+3. **Run the script**  
+   ```bash
+   sudo ./install_graylog_docker.sh
+   ```
+
+### Alternative Installation (Non-Docker Version)
+This installation sets up Graylog, MongoDB, and OpenSearch directly on the system rather than using Docker containers.
+
+1. **Download the alternative installation script**  
+   ```bash
    wget https://raw.githubusercontent.com/BransonBailey/Project-blog/refs/heads/main/Basic_Graylog_Installation/install_graylog.sh
    ```
 2. **Make it executable**  
@@ -29,22 +45,6 @@ As their names suggest, one installs and configures MongoDB, OpenSearch, and Gra
 3. **Run the script**  
    ```bash
    sudo ./install_graylog.sh
-   ```
-
-### Alternative Installation (Non-Docker Version)
-This installation sets up Graylog, MongoDB, and OpenSearch directly on the system rather than using Docker containers.
-
-1. **Download the alternative installation script**  
-   ```bash
-   wget https://raw.githubusercontent.com/BransonBailey/Project-blog/refs/heads/main/Basic_Graylog_Installation/alt_install.sh
-   ```
-2. **Make it executable**  
-   ```bash
-   chmod +x alt_install.sh
-   ```
-3. **Run the script**  
-   ```bash
-   sudo ./alt_install.sh
    ```
 
 ## Post Installation
