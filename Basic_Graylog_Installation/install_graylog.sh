@@ -4,7 +4,7 @@
 set -e
 
 echo "----------------------------------"
-echo "Graylog Installation - Ubuntu 24.04.2 LTS (Docker)"
+echo "Graylog Installation (Docker) - Ubuntu 24.04.2 LTS"
 echo "----------------------------------"
 
 # Ensure system is up to date
@@ -46,11 +46,14 @@ ENV_FILE=".env"
 if [ ! -f "$ENV_FILE" ]; then
     touch "$ENV_FILE"
 fi
+
+# Remove existing values to prevent duplicates
 sudo sed -i '/^GRAYLOG_PASSWORD_SECRET/d' "$ENV_FILE"
 sudo sed -i '/^GRAYLOG_ROOT_PASSWORD_SHA2/d' "$ENV_FILE"
 sudo sed -i '/^GRAYLOG_ROOT_EMAIL/d' "$ENV_FILE"
 
-sudo bash -c "cat <<EOF > $ENV_FILE
+# Append new values
+sudo bash -c "cat <<EOF >> $ENV_FILE
 GRAYLOG_PASSWORD_SECRET=${GRAYLOG_SECRET}
 GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ADMIN_PASSWORD}
 GRAYLOG_ROOT_EMAIL=admin@example.com
@@ -63,7 +66,11 @@ if [ ! -f "$COMPOSE_FILE" ]; then
     touch "$COMPOSE_FILE"
 fi
 
-sudo bash -c "cat <<EOF > $COMPOSE_FILE
+# Remove existing service definitions before appending
+sudo sed -i '/^services:/,/^volumes:/d' "$COMPOSE_FILE"
+
+# Append new configuration
+sudo bash -c "cat <<EOF >> $COMPOSE_FILE
 version: '3.8'
 services:
   mongo:
@@ -97,6 +104,7 @@ services:
     depends_on:
       - mongo
       - opensearch
+      - datanode
     env_file:
       - .env
     environment:
@@ -112,9 +120,24 @@ services:
       - "1514:1514"
     restart: unless-stopped
 
+  datanode:
+    image: graylog/graylog-datanode:6.1
+    container_name: graylog-datanode
+    depends_on:
+      - opensearch
+    environment:
+      - GRAYLOG_DATANODE_PASSWORD_SECRET=${GRAYLOG_SECRET}
+      - GRAYLOG_DATANODE_OPENSEARCH_HEAP=2g
+      - GRAYLOG_DATANODE_MONGODB_URI=mongodb://mongo:27017/graylog
+      - GRAYLOG_DATANODE_OPENSEARCH_HOST=http://opensearch:9200
+    volumes:
+      - datanode_data:/var/lib/graylog-datanode
+    restart: unless-stopped
+
 volumes:
   mongo_data:
   os_data:
+  datanode_data:
 EOF"
 
 # --- Start Graylog Stack ---
@@ -137,7 +160,7 @@ curl -X POST "$GRAYLOG_API" -u "admin:admin" -H "Content-Type: application/json"
 
 echo "[+] Done!"
 echo "--------------------------------------------------"
-echo "Graylog installation complete!"
+echo "Graylog + Data Node installation complete!"
 echo "Access the web UI at: http://<your-server-ip>:9000/"
 echo "Login with username: admin and password: admin"
 echo "Syslog input added on port 5140"
