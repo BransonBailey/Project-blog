@@ -26,6 +26,11 @@ else
     COMPOSE_CMD="docker compose"
 fi
 
+# --- Configure Kernel Parameters ---
+echo "[+] Configuring Linux kernel parameters..."
+echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+sudo sysctl -w vm.max_map_count=262144
+
 # --- Create Graylog Docker Directory ---
 echo "[+] Creating Graylog directory..."
 mkdir -p ~/graylog && cd ~/graylog
@@ -43,10 +48,12 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 sudo sed -i '/^GRAYLOG_PASSWORD_SECRET/d' "$ENV_FILE"
 sudo sed -i '/^GRAYLOG_ROOT_PASSWORD_SHA2/d' "$ENV_FILE"
+sudo sed -i '/^GRAYLOG_ROOT_EMAIL/d' "$ENV_FILE"
 
-sudo bash -c "cat <<EOF >> $ENV_FILE
+sudo bash -c "cat <<EOF > $ENV_FILE
 GRAYLOG_PASSWORD_SECRET=${GRAYLOG_SECRET}
 GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ADMIN_PASSWORD}
+GRAYLOG_ROOT_EMAIL=admin@example.com
 EOF"
 
 # --- Create docker-compose.yml ---
@@ -73,6 +80,8 @@ services:
       - discovery.type=single-node
       - plugins.security.disabled=true
       - bootstrap.memory_lock=true
+      - cluster.name=graylog
+      - action.auto_create_index=false
     volumes:
       - os_data:/usr/share/opensearch/data
     ulimits:
@@ -92,7 +101,11 @@ services:
       - .env
     environment:
       - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+      - GRAYLOG_HTTP_PUBLISH_URI=http://127.0.0.1:9000/
       - GRAYLOG_ELASTICSEARCH_HOSTS=http://opensearch:9200
+      - GRAYLOG_TRANSPORT_EMAIL_ENABLED=false
+      - GRAYLOG_MONGODB_URI=mongodb://mongo:27017/graylog
+      - GRAYLOG_DATA_DIR=/var/lib/graylog-server
     ports:
       - "9000:9000"
       - "5140:5140/udp"
@@ -114,6 +127,13 @@ until curl -s -f -o /dev/null "http://127.0.0.1:9000/api/system/inputs"; do
     sleep 5
     echo "[!] Graylog API not ready yet, retrying..."
 done
+
+# --- Configure Syslog Input ---
+echo "[+] Adding Syslog input..."
+GRAYLOG_INPUT_PAYLOAD='{"title":"Syslog","global":true,"type":"org.graylog2.inputs.syslog.udp.SyslogUDPInput","configuration":{"bind_address":"0.0.0.0","port":5140,"recv_buffer_size":262144,"override_source":""}}'
+GRAYLOG_API="http://127.0.0.1:9000/api/system/inputs"
+
+curl -X POST "$GRAYLOG_API" -u "admin:admin" -H "Content-Type: application/json" -d "$GRAYLOG_INPUT_PAYLOAD" || echo "[!] Failed to create Syslog input!"
 
 echo "[+] Done!"
 echo "--------------------------------------------------"
