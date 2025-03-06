@@ -1,7 +1,8 @@
 # Graylog Auto Installer - Ubuntu Server 24.04.2 LTS
 
-This script fully automates the installation of Graylog 6.0 on Ubuntu Server 24.04.2 LTS.
-It installs and configures Docker, MongoDB, OpenSearch, and Graylog, ensuring all services start on boot.
+These scripts fully automate the installation of Graylog 6.0 on Ubuntu Server 24.04.2 LTS.
+There are two versions available. ```install_graylog.sh``` and ```install_graylog_docker.sh```.
+As their names suggest, one installs and configures MongoDB, OpenSearch, and Graylog, ensuring all services start on boot. The other installs and configures MongoDB, OpenSearch, and Graylog in Docker, managing dependancies and container links.
 
 ## Features
 - Fully automated setup of Graylog and its dependencies.
