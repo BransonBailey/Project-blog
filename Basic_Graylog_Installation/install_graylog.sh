@@ -36,15 +36,27 @@ GRAYLOG_SECRET=$(openssl rand -base64 96)
 GRAYLOG_ADMIN_PASSWORD=$(echo -n "admin" | sha256sum | cut -d " " -f1)
 
 # --- Create Environment File ---
-echo "[+] Creating environment file..."
-cat <<EOF > .env
+echo "[+] Configuring environment file..."
+ENV_FILE=".env"
+if [ ! -f "$ENV_FILE" ]; then
+    touch "$ENV_FILE"
+fi
+sudo sed -i '/^GRAYLOG_PASSWORD_SECRET/d' "$ENV_FILE"
+sudo sed -i '/^GRAYLOG_ROOT_PASSWORD_SHA2/d' "$ENV_FILE"
+
+sudo bash -c "cat <<EOF >> $ENV_FILE
 GRAYLOG_PASSWORD_SECRET=${GRAYLOG_SECRET}
 GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ADMIN_PASSWORD}
-EOF
+EOF"
 
 # --- Create docker-compose.yml ---
-echo "[+] Creating docker-compose.yml..."
-cat <<EOF > docker-compose.yml
+echo "[+] Configuring docker-compose.yml..."
+COMPOSE_FILE="docker-compose.yml"
+if [ ! -f "$COMPOSE_FILE" ]; then
+    touch "$COMPOSE_FILE"
+fi
+
+sudo bash -c "cat <<EOF > $COMPOSE_FILE
 version: '3.8'
 services:
   mongo:
@@ -90,7 +102,7 @@ services:
 volumes:
   mongo_data:
   os_data:
-EOF
+EOF"
 
 # --- Start Graylog Stack ---
 echo "[+] Starting Graylog stack..."
@@ -110,4 +122,3 @@ echo "Access the web UI at: http://<your-server-ip>:9000/"
 echo "Login with username: admin and password: admin"
 echo "Syslog input added on port 5140"
 echo "--------------------------------------------------"
-
