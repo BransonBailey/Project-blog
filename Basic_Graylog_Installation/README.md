@@ -35,15 +35,15 @@ This installation sets up Graylog, MongoDB, and OpenSearch directly on the syste
 
 1. **Download the alternative installation script**  
    ```bash
-   wget https://raw.githubusercontent.com/BransonBailey/Project-blog/refs/heads/main/Basic_Graylog_Installation/install_graylog_alt.sh
+   wget https://raw.githubusercontent.com/BransonBailey/Project-blog/refs/heads/main/Basic_Graylog_Installation/alt_install.sh
    ```
 2. **Make it executable**  
    ```bash
-   chmod +x install_graylog_alt.sh
+   chmod +x alt_install.sh
    ```
 3. **Run the script**  
    ```bash
-   sudo ./install_graylog_alt.sh
+   sudo ./alt_install.sh
    ```
 
 ## Post Installation
