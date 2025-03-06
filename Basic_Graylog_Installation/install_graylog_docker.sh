@@ -69,7 +69,7 @@ fi
 # Remove existing service definitions before appending
 sudo sed -i '/^services:/,/^volumes:/d' "$COMPOSE_FILE"
 
-# Append new configuration
+# Append new configuration with Graylog Data Node
 sudo bash -c "cat <<EOF >> $COMPOSE_FILE
 version: '3.8'
 services:
@@ -79,6 +79,8 @@ services:
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
+    networks:
+      - graylog-net
 
   opensearch:
     image: opensearchproject/opensearch:2
@@ -95,11 +97,13 @@ services:
       memlock:
         soft: -1
         hard: -1
+    networks:
+      - graylog-net
     ports:
       - "9200:9200"
 
   graylog:
-    image: graylog/graylog:6.0
+    image: graylog/graylog:6.1
     container_name: graylog-server
     depends_on:
       - mongo
@@ -119,6 +123,10 @@ services:
       - "5140:5140/udp"
       - "1514:1514"
     restart: unless-stopped
+    networks:
+      - graylog-net
+    volumes:
+      - graylog_data:/var/lib/graylog-server
 
   datanode:
     image: graylog/graylog-datanode:6.1
@@ -130,13 +138,20 @@ services:
       - GRAYLOG_DATANODE_OPENSEARCH_HEAP=2g
       - GRAYLOG_DATANODE_MONGODB_URI=mongodb://mongo:27017/graylog
       - GRAYLOG_DATANODE_OPENSEARCH_HOST=http://opensearch:9200
+    networks:
+      - graylog-net
     volumes:
       - datanode_data:/var/lib/graylog-datanode
     restart: unless-stopped
 
+networks:
+  graylog-net:
+    driver: bridge
+
 volumes:
   mongo_data:
   os_data:
+  graylog_data:
   datanode_data:
 EOF"
 
