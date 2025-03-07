@@ -14,20 +14,27 @@ sudo apt update --allow-change-held-packages && sudo apt upgrade -y
 echo "[+] Installing dependencies..."
 sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget unzip
 
-# --- Install Docker and Docker Compose ---
+# --- Install Docker ---
 echo "[+] Installing Docker..."
 sudo apt install -y docker.io
 sudo systemctl enable --now docker
 
-# Install Docker Compose plugin
-echo "[+] Installing Docker Compose..."
-sudo apt install -y docker-compose-plugin
+# --- Install Docker Compose Manually (If Missing) ---
+if ! docker compose version &> /dev/null; then
+    echo "[+] Installing Docker Compose..."
+    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose || true
+fi
 
 # Detect whether to use `docker compose`
 if docker compose version &> /dev/null; then
     COMPOSE_CMD="docker compose"
-else
+elif docker-compose version &> /dev/null; then
     COMPOSE_CMD="docker-compose"
+else
+    echo "[!] Docker Compose installation failed!"
+    exit 1
 fi
 
 # --- Configure Kernel Parameters ---
