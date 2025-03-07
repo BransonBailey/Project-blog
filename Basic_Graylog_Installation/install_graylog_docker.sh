@@ -63,10 +63,7 @@ append_if_missing "GRAYLOG_ROOT_EMAIL" "admin@example.com" "$ENV_FILE"
 # --- Create or Update docker-compose.yml ---
 echo "[+] Configuring docker-compose.yml..."
 COMPOSE_FILE="docker-compose.yml"
-sudo touch "$COMPOSE_FILE"
-
-if ! grep -q "mongo:" "$COMPOSE_FILE"; then
-    sudo tee "$COMPOSE_FILE" > /dev/null <<EOF
+sudo tee "$COMPOSE_FILE" > /dev/null <<EOF
 version: '3.8'
 services:
   mongo:
@@ -151,7 +148,6 @@ volumes:
   graylog_data: {}
   datanode_data: {}
 EOF
-fi
 
 # --- Start Graylog Stack ---
 echo "[+] Starting Graylog stack..."
