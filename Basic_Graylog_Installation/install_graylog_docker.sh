@@ -19,12 +19,12 @@ echo "[+] Installing Docker..."
 sudo apt install -y docker.io
 sudo systemctl enable --now docker
 
-# --- Install Docker Compose Manually (If Missing) ---
+# --- Install Docker Compose (Manually if Needed) ---
 if ! docker compose version &> /dev/null; then
     echo "[+] Installing Docker Compose..."
     sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     sudo chmod +x /usr/local/bin/docker-compose
-    ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose || true
+    sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
 fi
 
 # Detect whether to use `docker compose`
@@ -48,13 +48,15 @@ mkdir -p ~/graylog && cd ~/graylog
 
 # --- Generate Secrets ---
 echo "[+] Generating secrets for Graylog..."
-GRAYLOG_SECRET=$(openssl rand -base64 96)
+GRAYLOG_SECRET=$(openssl rand -base64 96 | tr -d '\n' | tr -d '/')
+GRAYLOG_DATANODE_PASSWORD_SECRET=$(openssl rand -base64 96 | tr -d '\n' | tr -d '/')
 GRAYLOG_ADMIN_PASSWORD=$(echo -n "admin" | sha256sum | cut -d " " -f1)
 
 # --- Create or Update Environment File ---
 echo "[+] Configuring environment file..."
 ENV_FILE=".env"
 sudo touch "$ENV_FILE"
+sudo chmod 600 "$ENV_FILE"  # Secure permissions
 
 append_if_missing() {
     local key=$1
@@ -64,6 +66,7 @@ append_if_missing() {
 }
 
 append_if_missing "GRAYLOG_PASSWORD_SECRET" "$GRAYLOG_SECRET" "$ENV_FILE"
+append_if_missing "GRAYLOG_DATANODE_PASSWORD_SECRET" "$GRAYLOG_DATANODE_PASSWORD_SECRET" "$ENV_FILE"
 append_if_missing "GRAYLOG_ROOT_PASSWORD_SHA2" "$GRAYLOG_ADMIN_PASSWORD" "$ENV_FILE"
 append_if_missing "GRAYLOG_ROOT_EMAIL" "admin@example.com" "$ENV_FILE"
 
@@ -91,6 +94,7 @@ services:
       - bootstrap.memory_lock=true
       - cluster.name=graylog
       - action.auto_create_index=false
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
     volumes:
       - os_data:/usr/share/opensearch/data
     ulimits:
@@ -105,7 +109,10 @@ services:
   datanode:
     image: graylog/graylog-datanode:6.1
     container_name: graylog-datanode
+    env_file:
+      - .env
     environment:
+      - GRAYLOG_DATANODE_PASSWORD_SECRET=${GRAYLOG_DATANODE_PASSWORD_SECRET}
       - GRAYLOG_DATANODE_NODE_ID=default
       - GRAYLOG_DATANODE_OPENSEARCH_URI=http://opensearch:9200
       - GRAYLOG_DATANODE_MONGODB_URI=mongodb://mongo:27017/graylog
@@ -132,9 +139,6 @@ services:
       - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
       - GRAYLOG_HTTP_PUBLISH_URI=http://127.0.0.1:9000/
       - GRAYLOG_ELASTICSEARCH_HOSTS=http://datanode:8999
-      - GRAYLOG_TRANSPORT_EMAIL_ENABLED=false
-      - GRAYLOG_MONGODB_URI=mongodb://mongo:27017/graylog
-      - GRAYLOG_DATA_DIR=/var/lib/graylog-server
     ports:
       - "9000:9000"
       - "5140:5140/udp"
@@ -162,7 +166,7 @@ $COMPOSE_CMD up -d
 
 # --- Wait for Graylog API ---
 echo "[+] Waiting for Graylog API..."
-TIMEOUT=300  # Max wait time: 5 minutes
+TIMEOUT=600  # Increased timeout to 10 minutes
 ELAPSED=0
 while ! curl -s -f -o /dev/null "http://127.0.0.1:9000/api/system/inputs"; do
     sleep 5
