@@ -40,39 +40,40 @@ echo "[+] Generating secrets for Graylog..."
 GRAYLOG_SECRET=$(openssl rand -base64 96)
 GRAYLOG_ADMIN_PASSWORD=$(echo -n "admin" | sha256sum | cut -d " " -f1)
 
-# --- Create Environment File ---
+# --- Create or Update Environment File ---
 echo "[+] Configuring environment file..."
 ENV_FILE=".env"
-if [ ! -f "$ENV_FILE" ]; then
-    touch "$ENV_FILE"
-fi
+touch "$ENV_FILE"
 
-# Remove existing values to prevent duplicates
-sudo sed -i '/^GRAYLOG_PASSWORD_SECRET/d' "$ENV_FILE"
-sudo sed -i '/^GRAYLOG_ROOT_PASSWORD_SHA2/d' "$ENV_FILE"
-sudo sed -i '/^GRAYLOG_ROOT_EMAIL/d' "$ENV_FILE"
+append_if_missing() {
+    local key=$1
+    local value=$2
+    local file=$3
+    grep -q "^$key=" "$file" || echo "$key=$value" | sudo tee -a "$file" > /dev/null
+}
 
-# Append new values
-sudo bash -c "cat <<EOF >> $ENV_FILE
-GRAYLOG_PASSWORD_SECRET=${GRAYLOG_SECRET}
-GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ADMIN_PASSWORD}
-GRAYLOG_ROOT_EMAIL=admin@example.com
-EOF"
+append_if_missing "GRAYLOG_PASSWORD_SECRET" "$GRAYLOG_SECRET" "$ENV_FILE"
+append_if_missing "GRAYLOG_ROOT_PASSWORD_SHA2" "$GRAYLOG_ADMIN_PASSWORD" "$ENV_FILE"
+append_if_missing "GRAYLOG_ROOT_EMAIL" "admin@example.com" "$ENV_FILE"
 
-# --- Create docker-compose.yml ---
+# --- Create or Update docker-compose.yml ---
 echo "[+] Configuring docker-compose.yml..."
 COMPOSE_FILE="docker-compose.yml"
-if [ ! -f "$COMPOSE_FILE" ]; then
-    touch "$COMPOSE_FILE"
-fi
+touch "$COMPOSE_FILE"
 
-# Remove existing service definitions before appending
-sudo sed -i '/^services:/,/^volumes:/d' "$COMPOSE_FILE"
+append_yaml_if_missing() {
+    local key=$1
+    local value=$2
+    local file=$3
+    grep -q "^[[:space:]]*$key:" "$file" || echo "$key: $value" | sudo tee -a "$file" > /dev/null
+}
 
-# Append new configuration with Graylog Data Node
-sudo bash -c "cat <<EOF >> $COMPOSE_FILE
-version: '3.8'
-services:
+append_yaml_if_missing "version" "'3.8'" "$COMPOSE_FILE"
+append_yaml_if_missing "services" "" "$COMPOSE_FILE"
+
+# Append service definitions safely
+if ! grep -q "mongo:" "$COMPOSE_FILE"; then
+    sudo tee -a "$COMPOSE_FILE" > /dev/null <<EOF
   mongo:
     image: mongo:6.0
     container_name: graylog-mongo
@@ -81,7 +82,11 @@ services:
       - mongo_data:/data/db
     networks:
       - graylog-net
+EOF
+fi
 
+if ! grep -q "opensearch:" "$COMPOSE_FILE"; then
+    sudo tee -a "$COMPOSE_FILE" > /dev/null <<EOF
   opensearch:
     image: opensearchproject/opensearch:2
     container_name: graylog-opensearch
@@ -101,7 +106,11 @@ services:
       - graylog-net
     ports:
       - "9200:9200"
+EOF
+fi
 
+if ! grep -q "graylog:" "$COMPOSE_FILE"; then
+    sudo tee -a "$COMPOSE_FILE" > /dev/null <<EOF
   graylog:
     image: graylog/graylog:6.1
     container_name: graylog-server
@@ -127,33 +136,18 @@ services:
       - graylog-net
     volumes:
       - graylog_data:/var/lib/graylog-server
+EOF
+fi
 
-  datanode:
-    image: graylog/graylog-datanode:6.1
-    container_name: graylog-datanode
-    depends_on:
-      - opensearch
-    environment:
-      - GRAYLOG_DATANODE_PASSWORD_SECRET=${GRAYLOG_SECRET}
-      - GRAYLOG_DATANODE_OPENSEARCH_HEAP=2g
-      - GRAYLOG_DATANODE_MONGODB_URI=mongodb://mongo:27017/graylog
-      - GRAYLOG_DATANODE_OPENSEARCH_HOST=http://opensearch:9200
-    networks:
-      - graylog-net
-    volumes:
-      - datanode_data:/var/lib/graylog-datanode
-    restart: unless-stopped
+# Ensure networks and volumes are properly defined
+append_yaml_if_missing "networks" "" "$COMPOSE_FILE"
+append_yaml_if_missing "graylog-net" "driver: bridge" "$COMPOSE_FILE"
 
-networks:
-  graylog-net:
-    driver: bridge
-
-volumes:
-  mongo_data:
-  os_data:
-  graylog_data:
-  datanode_data:
-EOF"
+append_yaml_if_missing "volumes" "" "$COMPOSE_FILE"
+append_yaml_if_missing "mongo_data" "{}" "$COMPOSE_FILE"
+append_yaml_if_missing "os_data" "{}" "$COMPOSE_FILE"
+append_yaml_if_missing "graylog_data" "{}" "$COMPOSE_FILE"
+append_yaml_if_missing "datanode_data" "{}" "$COMPOSE_FILE"
 
 # --- Start Graylog Stack ---
 echo "[+] Starting Graylog stack..."
@@ -161,8 +155,15 @@ $COMPOSE_CMD up -d
 
 # --- Wait for Graylog API ---
 echo "[+] Waiting for Graylog API..."
-until curl -s -f -o /dev/null "http://127.0.0.1:9000/api/system/inputs"; do
+TIMEOUT=300  # Max wait time: 5 minutes
+ELAPSED=0
+while ! curl -s -f -o /dev/null "http://127.0.0.1:9000/api/system/inputs"; do
     sleep 5
+    ELAPSED=$((ELAPSED + 5))
+    if [ $ELAPSED -ge $TIMEOUT ]; then
+        echo "[!] Timeout waiting for Graylog API!"
+        exit 1
+    fi
     echo "[!] Graylog API not ready yet, retrying..."
 done
 
