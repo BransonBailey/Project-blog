@@ -16,14 +16,18 @@ sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget unzip
 
 # --- Install Docker and Docker Compose ---
 echo "[+] Installing Docker..."
-sudo apt install -y docker.io docker-compose
+sudo apt install -y docker.io
 sudo systemctl enable --now docker
 
-# Detect whether to use docker-compose or docker compose
-if command -v docker-compose &> /dev/null; then
-    COMPOSE_CMD="docker-compose"
-else
+# Install Docker Compose plugin
+echo "[+] Installing Docker Compose..."
+sudo apt install -y docker-compose-plugin
+
+# Detect whether to use `docker compose`
+if docker compose version &> /dev/null; then
     COMPOSE_CMD="docker compose"
+else
+    COMPOSE_CMD="docker-compose"
 fi
 
 # --- Configure Kernel Parameters ---
@@ -43,13 +47,13 @@ GRAYLOG_ADMIN_PASSWORD=$(echo -n "admin" | sha256sum | cut -d " " -f1)
 # --- Create or Update Environment File ---
 echo "[+] Configuring environment file..."
 ENV_FILE=".env"
-touch "$ENV_FILE"
+sudo touch "$ENV_FILE"
 
 append_if_missing() {
     local key=$1
     local value=$2
     local file=$3
-    grep -q "^$key=" "$file" || echo "$key=$value" | sudo tee -a "$file" > /dev/null
+    sudo grep -q "^$key=" "$file" || echo "$key=$value" | sudo tee -a "$file" > /dev/null
 }
 
 append_if_missing "GRAYLOG_PASSWORD_SECRET" "$GRAYLOG_SECRET" "$ENV_FILE"
@@ -59,21 +63,12 @@ append_if_missing "GRAYLOG_ROOT_EMAIL" "admin@example.com" "$ENV_FILE"
 # --- Create or Update docker-compose.yml ---
 echo "[+] Configuring docker-compose.yml..."
 COMPOSE_FILE="docker-compose.yml"
-touch "$COMPOSE_FILE"
+sudo touch "$COMPOSE_FILE"
 
-append_yaml_if_missing() {
-    local key=$1
-    local value=$2
-    local file=$3
-    grep -q "^[[:space:]]*$key:" "$file" || echo "$key: $value" | sudo tee -a "$file" > /dev/null
-}
-
-append_yaml_if_missing "version" "'3.8'" "$COMPOSE_FILE"
-append_yaml_if_missing "services" "" "$COMPOSE_FILE"
-
-# Append service definitions safely
 if ! grep -q "mongo:" "$COMPOSE_FILE"; then
-    sudo tee -a "$COMPOSE_FILE" > /dev/null <<EOF
+    sudo tee "$COMPOSE_FILE" > /dev/null <<EOF
+version: '3.8'
+services:
   mongo:
     image: mongo:6.0
     container_name: graylog-mongo
@@ -82,11 +77,7 @@ if ! grep -q "mongo:" "$COMPOSE_FILE"; then
       - mongo_data:/data/db
     networks:
       - graylog-net
-EOF
-fi
 
-if ! grep -q "opensearch:" "$COMPOSE_FILE"; then
-    sudo tee -a "$COMPOSE_FILE" > /dev/null <<EOF
   opensearch:
     image: opensearchproject/opensearch:2
     container_name: graylog-opensearch
@@ -106,18 +97,13 @@ if ! grep -q "opensearch:" "$COMPOSE_FILE"; then
       - graylog-net
     ports:
       - "9200:9200"
-EOF
-fi
 
-if ! grep -q "graylog:" "$COMPOSE_FILE"; then
-    sudo tee -a "$COMPOSE_FILE" > /dev/null <<EOF
   graylog:
     image: graylog/graylog:6.1
     container_name: graylog-server
     depends_on:
       - mongo
       - opensearch
-      - datanode
     env_file:
       - .env
     environment:
@@ -136,18 +122,17 @@ if ! grep -q "graylog:" "$COMPOSE_FILE"; then
       - graylog-net
     volumes:
       - graylog_data:/var/lib/graylog-server
+
+networks:
+  graylog-net:
+    driver: bridge
+
+volumes:
+  mongo_data: {}
+  os_data: {}
+  graylog_data: {}
 EOF
 fi
-
-# Ensure networks and volumes are properly defined
-append_yaml_if_missing "networks" "" "$COMPOSE_FILE"
-append_yaml_if_missing "graylog-net" "driver: bridge" "$COMPOSE_FILE"
-
-append_yaml_if_missing "volumes" "" "$COMPOSE_FILE"
-append_yaml_if_missing "mongo_data" "{}" "$COMPOSE_FILE"
-append_yaml_if_missing "os_data" "{}" "$COMPOSE_FILE"
-append_yaml_if_missing "graylog_data" "{}" "$COMPOSE_FILE"
-append_yaml_if_missing "datanode_data" "{}" "$COMPOSE_FILE"
 
 # --- Start Graylog Stack ---
 echo "[+] Starting Graylog stack..."
@@ -169,14 +154,24 @@ done
 
 # --- Configure Syslog Input ---
 echo "[+] Adding Syslog input..."
-GRAYLOG_INPUT_PAYLOAD='{"title":"Syslog","global":true,"type":"org.graylog2.inputs.syslog.udp.SyslogUDPInput","configuration":{"bind_address":"0.0.0.0","port":5140,"recv_buffer_size":262144,"override_source":""}}'
-GRAYLOG_API="http://127.0.0.1:9000/api/system/inputs"
+GRAYLOG_INPUT_PAYLOAD='{
+  "title": "Syslog",
+  "global": true,
+  "type": "org.graylog2.inputs.syslog.udp.SyslogUDPInput",
+  "configuration": {
+    "bind_address": "0.0.0.0",
+    "port": 5140,
+    "recv_buffer_size": 262144,
+    "override_source": ""
+  }
+}'
 
+GRAYLOG_API="http://127.0.0.1:9000/api/system/inputs"
 curl -X POST "$GRAYLOG_API" -u "admin:admin" -H "Content-Type: application/json" -d "$GRAYLOG_INPUT_PAYLOAD" || echo "[!] Failed to create Syslog input!"
 
 echo "[+] Done!"
 echo "--------------------------------------------------"
-echo "Graylog + Data Node installation complete!"
+echo "Graylog installation complete!"
 echo "Access the web UI at: http://<your-server-ip>:9000/"
 echo "Login with username: admin and password: admin"
 echo "Syslog input added on port 5140"
