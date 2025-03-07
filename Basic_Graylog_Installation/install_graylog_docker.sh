@@ -98,18 +98,36 @@ services:
     ports:
       - "9200:9200"
 
+  datanode:
+    image: graylog/graylog-datanode:6.1
+    container_name: graylog-datanode
+    environment:
+      - GRAYLOG_DATANODE_NODE_ID=default
+      - GRAYLOG_DATANODE_OPENSEARCH_URI=http://opensearch:9200
+      - GRAYLOG_DATANODE_MONGODB_URI=mongodb://mongo:27017/graylog
+      - GRAYLOG_DATANODE_HTTP_BIND_ADDRESS=0.0.0.0:8999
+      - GRAYLOG_DATANODE_HTTP_PUBLISH_URI=http://127.0.0.1:8999/
+    ports:
+      - "8999:8999"
+    restart: unless-stopped
+    networks:
+      - graylog-net
+    volumes:
+      - datanode_data:/var/lib/graylog-datanode
+
   graylog:
     image: graylog/graylog:6.1
     container_name: graylog-server
     depends_on:
       - mongo
       - opensearch
+      - datanode
     env_file:
       - .env
     environment:
       - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
       - GRAYLOG_HTTP_PUBLISH_URI=http://127.0.0.1:9000/
-      - GRAYLOG_ELASTICSEARCH_HOSTS=http://opensearch:9200
+      - GRAYLOG_ELASTICSEARCH_HOSTS=http://datanode:8999
       - GRAYLOG_TRANSPORT_EMAIL_ENABLED=false
       - GRAYLOG_MONGODB_URI=mongodb://mongo:27017/graylog
       - GRAYLOG_DATA_DIR=/var/lib/graylog-server
@@ -131,6 +149,7 @@ volumes:
   mongo_data: {}
   os_data: {}
   graylog_data: {}
+  datanode_data: {}
 EOF
 fi
 
