@@ -1,19 +1,19 @@
 #!/bin/bash
 
-# Exit on error
+# --- Exit on error ---
 set -e
 echo "----------------------------------"
 echo "Graylog Installation - Ubuntu 24.04.2 LTS"
 echo "----------------------------------"
 
-# Ensure system is up to date
+# --- Update System ---
 echo "[+] Updating system packages..."
 sudo apt update --allow-change-held-packages && sudo apt upgrade -y
 
 echo "[+] Installing dependencies..."
 sudo apt install -y lsb-release ca-certificates curl gnupg gnupg2 wget unzip openjdk-17-jre
 
-# Set timezone to UTC
+# --- Set Timezone to UTC ---
 echo "[+] Setting timezone to UTC..."
 sudo timedatectl set-timezone UTC
 
@@ -115,13 +115,10 @@ sudo apt-get install -y graylog-datanode
 
 # --- Configure Linux Kernel Parameters ---
 echo "[+] Configuring Linux kernel parameters for Data Node..."
-
-# Check if the parameter is already set before adding it
 if ! grep -q "^vm.max_map_count=262144" /etc/sysctl.d/99-graylog-datanode.conf; then
     echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.d/99-graylog-datanode.conf
 fi
 
-# Apply the changes
 sudo sysctl --system
 
 # --- Generate and Set Password Secret ---
@@ -132,12 +129,10 @@ echo "[+] Configuring Data Node..."
 
 CONFIG_FILE="/etc/graylog/datanode/datanode.conf"
 
-# Ensure the config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
     sudo touch "$CONFIG_FILE"
 fi
 
-# Modify or append values safely
 sudo sed -i '/^password_secret/d' "$CONFIG_FILE"
 sudo sed -i '/^opensearch_heap/d' "$CONFIG_FILE"
 sudo sed -i '/^mongodb_uri/d' "$CONFIG_FILE"
@@ -153,16 +148,13 @@ echo "[+] Configuring Data Node heap settings..."
 
 JVM_OPTIONS="/etc/graylog/datanode/jvm.options"
 
-# Ensure the file exists
 if [ ! -f "$JVM_OPTIONS" ]; then
     sudo touch "$JVM_OPTIONS"
 fi
 
-# Remove existing heap size settings to avoid duplicates
 sudo sed -i '/^-Xms/d' "$JVM_OPTIONS"
 sudo sed -i '/^-Xmx/d' "$JVM_OPTIONS"
 
-# Append the correct heap settings
 sudo bash -c "cat <<EOF >> $JVM_OPTIONS
 -Xms2g
 -Xmx2g
@@ -186,12 +178,10 @@ echo "[+] Configuring Graylog..."
 
 CONFIG_FILE="/etc/graylog/server/server.conf"
 
-# Ensure the config file exists
 if [ ! -f "$CONFIG_FILE" ]; then
     sudo touch "$CONFIG_FILE"
 fi
 
-# Remove existing values to avoid duplicates
 sudo sed -i '/^password_secret/d' "$CONFIG_FILE"
 sudo sed -i '/^root_password_sha2/d' "$CONFIG_FILE"
 sudo sed -i '/^root_email/d' "$CONFIG_FILE"
@@ -201,7 +191,6 @@ sudo sed -i '/^elasticsearch_hosts/d' "$CONFIG_FILE"
 sudo sed -i '/^transport_email_enabled/d' "$CONFIG_FILE"
 sudo sed -i '/^data_dir/d' "$CONFIG_FILE"
 
-# Append the correct values
 sudo bash -c "cat <<EOF >> $CONFIG_FILE
 password_secret = $GRAYLOG_SECRET
 root_password_sha2 = $GRAYLOG_ADMIN_PASSWORD
@@ -231,13 +220,10 @@ echo "[+] Configuring Syslog UDP input..."
 GRAYLOG_INPUT_PAYLOAD='{"title":"Syslog","global":true,"type":"org.graylog2.inputs.syslog.udp.SyslogUDPInput","configuration":{"bind_address":"0.0.0.0","port":5140,"recv_buffer_size":262144,"override_source":""}}'
 GRAYLOG_API="http://127.0.0.1:9000/api/system/inputs"
 
-# Wait for Graylog to be fully initialized before creating inputs
+# --- Wait for Graylog ---
 echo "[+] Waiting for Graylog to start..."
 sudo systemctl start graylog-server.service && sudo systemctl enable graylog-server.service
 sleep 120
-
-echo "[+] Adding Syslog input..."
-curl -X POST "$GRAYLOG_API" -u "admin:admin" -H "Content-Type: application/json" -d "$GRAYLOG_INPUT_PAYLOAD"
 
 # --- Final Output ---
 echo "--------------------------------------------------"
