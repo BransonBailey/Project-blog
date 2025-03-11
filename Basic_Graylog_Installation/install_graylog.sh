@@ -58,50 +58,6 @@ done
 
 echo "[+] MongoDB installed and running!"
 
-# --- Install OpenSearch ---
-echo "[+] Adding OpenSearch repository..."
-curl -o- https://artifacts.opensearch.org/publickeys/opensearch.pgp | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/opensearch-keyring
-echo "deb [signed-by=/etc/apt/keyrings/opensearch-keyring] https://artifacts.opensearch.org/releases/bundle/opensearch/2.x/apt stable main" | sudo tee /etc/apt/sources.list.d/opensearch-2.x.list
-
-echo "[+] Installing OpenSearch..."
-sudo apt update
-sudo OPENSEARCH_INITIAL_ADMIN_PASSWORD=$(openssl rand -base64 32) apt install -y opensearch
-
-echo "[+] Preventing OpenSearch upgrades..."
-sudo apt-mark hold opensearch
-
-echo "[+] Configuring OpenSearch..."
-sudo touch /etc/opensearch/opensearch.yml
-
-sudo sed -i '/^cluster.name:/d' /etc/opensearch/opensearch.yml
-sudo sed -i '/^node.name:/d' /etc/opensearch/opensearch.yml
-sudo sed -i '/^network.host:/d' /etc/opensearch/opensearch.yml
-sudo sed -i '/^discovery.type:/d' /etc/opensearch/opensearch.yml
-sudo sed -i '/^action.auto_create_index:/d' /etc/opensearch/opensearch.yml
-sudo sed -i '/^plugins.security.disabled:/d' /etc/opensearch/opensearch.yml
-sudo sed -i '/^plugins.security.ssl.http.enabled:/d' /etc/opensearch/opensearch.yml
-
-sudo bash -c 'cat <<EOF >> /etc/opensearch/opensearch.yml
-cluster.name: graylog
-node.name: '"$(hostname)"'
-network.host: 127.0.0.1
-discovery.type: single-node
-action.auto_create_index: false
-plugins.security.disabled: true
-plugins.security.ssl.http.enabled: false
-EOF'
-
-echo "[+] Setting OpenSearch memory limits..."
-sudo sed -i 's/^-Xms.*/-Xms2g/' /etc/opensearch/jvm.options
-sudo sed -i 's/^-Xmx.*/-Xmx2g/' /etc/opensearch/jvm.options
-
-echo "[+] Configuring kernel parameters for OpenSearch..."
-echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
-sudo sysctl -w vm.max_map_count=262144
-
-echo "[+] Starting and enabling OpenSearch service..."
-sudo systemctl enable --now opensearch
-
 # --- Install Graylog ---
 wget https://packages.graylog2.org/repo/packages/graylog-6.0-repository_latest.deb
 sudo dpkg -i graylog-6.0-repository_latest.deb
