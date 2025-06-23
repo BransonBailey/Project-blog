@@ -103,8 +103,8 @@ echo "[+] Starting and enabling OpenSearch service..."
 sudo systemctl enable --now opensearch
 
 # --- Install Graylog ---
-wget https://packages.graylog2.org/repo/packages/graylog-6.0-repository_latest.deb
-sudo dpkg -i graylog-6.0-repository_latest.deb
+wget https://packages.graylog2.org/repo/packages/graylog-6.2-repository_latest.deb
+sudo dpkg -i graylog-6.2-repository_latest.deb
 
 # --- Install Graylog Data Node ---
 echo "[+] Installing Graylog Data Node..."
